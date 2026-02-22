@@ -27,9 +27,14 @@ html {
 
   .layout-background {
     @apply pointer-events-none absolute inset-0 opacity-60;
-    background: radial-gradient(circle at top, rgba(16, 185, 129, 0.18), transparent 55%),
-                radial-gradient(circle at bottom, rgba(59, 130, 246, 0.16), transparent 55%),
-                linear-gradient(to bottom, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 1));
+    background:
+      radial-gradient(circle at top, rgba(16, 185, 129, 0.18), transparent 55%),
+      radial-gradient(
+        circle at bottom,
+        rgba(59, 130, 246, 0.16),
+        transparent 55%
+      ),
+      linear-gradient(to bottom, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 1));
   }
 
   .layout-container {
@@ -125,7 +130,7 @@ html {
   }
 
   .chat-messages {
-    @apply flex flex-col-reverse overflow-auto px-4 py-3 space-y-4 space-y-reverse custom-scroll;
+    @apply flex flex-col overflow-auto px-4 py-3 space-y-4 custom-scroll;
   }
 
   .chat-empty-placeholder {
@@ -133,7 +138,7 @@ html {
   }
 
   .message-container {
-    @apply flex flex-col gap-1 group;
+    @apply flex flex-col gap-1;
   }
 
   .message-flex {
@@ -206,7 +211,7 @@ html {
 
   /* ===== STEP ROW ===== */
   .step-row {
-    @apply flex w-full items-center gap-2 text-left group/step;
+    @apply flex w-full items-center gap-2 text-left;
   }
 
   .step-number-container {
@@ -214,7 +219,7 @@ html {
   }
 
   .step-number {
-    @apply flex items-center justify-center h-4 w-4 rounded-full bg-slate-900/90 border border-slate-700 text-[9px] text-slate-400 group-hover/step:border-emerald-500 group-hover/step:text-emerald-300 transition-colors;
+    @apply flex items-center justify-center h-4 w-4 rounded-full bg-slate-900/90 border border-slate-700 text-[9px] text-slate-400 transition-colors;
   }
 
   .step-content {
@@ -226,7 +231,7 @@ html {
   }
 
   .step-label {
-    @apply text-[11px] text-slate-300 group-hover/step:text-slate-50 transition-colors;
+    @apply text-[11px] text-slate-300 transition-colors;
   }
 }
 

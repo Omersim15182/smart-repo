@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Layout } from "./components/layout/Layout";
 import { ChatWindow } from "./components/chat/ChatWindow";
+import { sendMessageToAgent } from "./services/agentService";
 
 export type AgentStep = {
   id: string;
@@ -20,30 +21,39 @@ function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedPreview, setSelectedPreview] = useState<string | null>(null);
 
-  const handleSend = (text: string) => {
+  const handleSend = async (text: string) => {
     if (!text.trim()) return;
 
     const baseId = crypto.randomUUID();
-    const newMessage: ChatMessage = {
+    const userMessage: ChatMessage = {
       id: baseId,
       role: "user",
       content: text,
     };
 
-    const agentMessage: ChatMessage = {
+    // Add user message immediately
+    setMessages((prev) => [...prev, userMessage]);
+
+    // Add loading agent message
+    const loadingMessage: ChatMessage = {
       id: `${baseId}-agent`,
       role: "agent",
-      content: "Analyzing your repository structure...",
-      steps: [
-        { id: "1", label: "Accessing MCP File System", status: "done" },
-        { id: "2", label: "Scanning for security patterns", status: "running" },
-        { id: "3", label: "Generating report", status: "pending" },
-      ],
-      previewCode: `// Security Scan Results\n// Found 0 critical vulnerabilities in src/auth.ts`,
+      content: "Processing your request...",
+      steps: [{ id: "1", label: "Analyzing your request", status: "running" }],
     };
+    setMessages((prev) => [...prev, loadingMessage]);
 
-    setMessages((prev) => [...prev, newMessage, agentMessage]);
-    setSelectedPreview(agentMessage.previewCode ?? null);
+    // Get response from API
+    const agentMessage = await sendMessageToAgent(text);
+
+    // Replace loading message with actual response
+    setMessages((prev) =>
+      prev.map((msg) => (msg.id === loadingMessage.id ? agentMessage : msg)),
+    );
+
+    if (agentMessage.previewCode) {
+      setSelectedPreview(agentMessage.previewCode);
+    }
   };
 
   const handleQuickAction = (action: "scan" | "readme" | "refactor") => {
@@ -61,10 +71,9 @@ function App() {
     <div className="app-root h-full">
       <Layout
         messages={messages}
-        onQuickAction={handleQuickAction}
         onSend={handleSend}
-        selectedPreview={selectedPreview}
         onSelectPreview={(code) => setSelectedPreview(code ?? null)}
+        selectedPreview={selectedPreview}
       >
         <ChatWindow
           messages={messages}

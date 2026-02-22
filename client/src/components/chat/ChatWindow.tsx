@@ -1,5 +1,5 @@
 // src/components/ChatWindow.tsx
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { FormEvent } from "react";
 import { Send } from "lucide-react";
 import type { ChatMessage, AgentStep } from "../../App";
@@ -14,6 +14,13 @@ type Props = {
 export function ChatWindow({ messages, onSend, onSelectPreview }: Props) {
   const [input, setInput] = useState("");
 
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // scroll chat to bottom whenever messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -22,7 +29,7 @@ export function ChatWindow({ messages, onSend, onSelectPreview }: Props) {
   };
 
   return (
-    <div className="chat-container">
+    <div className={"chat-container"}>
       <div className="chat-messages-wrapper">
         <div className="chat-messages">
           {messages.length === 0 && (
@@ -39,6 +46,8 @@ export function ChatWindow({ messages, onSend, onSelectPreview }: Props) {
               onSelectPreview={onSelectPreview}
             />
           ))}
+          {/* dummy div for scrolling */}
+          <div ref={messagesEndRef} />
         </div>
       </div>
       <form onSubmit={handleSubmit} className="chat-input-form">
