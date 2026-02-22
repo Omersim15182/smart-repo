@@ -47,25 +47,33 @@ function App() {
   };
 
   const handleQuickAction = (action: "scan" | "readme" | "refactor") => {
-    const text = action === "scan" ? "Scan repo" : action === "readme" ? "Gen README" : "Refactor";
+    const text =
+      action === "scan"
+        ? "Scan repo"
+        : action === "readme"
+          ? "Gen README"
+          : "Refactor";
     handleSend(text);
   };
 
   return (
-    <Layout
-      messages={messages}
-      onQuickAction={handleQuickAction}
-      onSend={handleSend}
-      selectedPreview={selectedPreview}
-      onSelectPreview={(code) => setSelectedPreview(code ?? null)}
-    >
-      <ChatWindow
+    // top-level container; avoid long Tailwind strings here
+    <div className="app-root h-full">
+      <Layout
         messages={messages}
-        onSend={handleSend}
         onQuickAction={handleQuickAction}
+        onSend={handleSend}
+        selectedPreview={selectedPreview}
         onSelectPreview={(code) => setSelectedPreview(code ?? null)}
-      />
-    </Layout>
+      >
+        <ChatWindow
+          messages={messages}
+          onSend={handleSend}
+          onQuickAction={handleQuickAction}
+          onSelectPreview={(code) => setSelectedPreview(code ?? null)}
+        />
+      </Layout>
+    </div>
   );
 }
 

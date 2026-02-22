@@ -1,27 +1,32 @@
----
-description: Rules for Node.js Express Backend (JavaScript) with Modular Routing
-globs: server/**/*.js
-alwaysApply: false
----
-# Backend Standards (JS)
+# Backend Standards (JavaScript)
 
-## 🏗 Core Principles
-- **Runtime:** Use Node.js with Express.
+## Core Principles
+- **Runtime:** Node.js with Express.
 - **Module System:** Use CommonJS (`require`/`module.exports`) for consistency in the server.
 - **Response Format:** Every API response must return: `{ success: boolean, data: any, error: string | null }`.
 
-## 📁 Folder Structure & Routing
+## Folder Structure & Routing
+
 **Never put API logic directly in `index.js`.** Follow this chain:
+
 1. **`index.js`**: Setup Express and link main routers using `app.use()`.
 2. **`routes/`**: Define endpoints and map them to controller functions.
 3. **`controllers/`**: Handle the logic, request validation, and calls to external APIs/MCP.
 
-**Naming Convention:** - Route: `routes/[name]Routes.js` (e.g., `routes/agentRoutes.js`)
+**Naming Convention:**
+- Route: `routes/[name]Routes.js` (e.g., `routes/agentRoutes.js`)
 - Controller: `controllers/[name]Controller.js` (e.g., `controllers/agentController.js`)
 
-## 💻 Code Examples
+## Flow Requirement
+- **Flow:** `Incoming Request` → `index.js` → `Router` → `Controller` → `Response`.
+- Always use `async/await` for database or API operations.
+- Use `dotenv` for sensitive environment variables via `process.env`.
+
+## Examples
 
 ### ✅ Good: Modular Routing (The Standard)
+
+```javascript
 // server/routes/agentRoutes.js
 const express = require('express');
 const router = express.Router();
@@ -29,26 +34,26 @@ const agentController = require('../controllers/agentController');
 
 router.post('/scan', agentController.scanRepo);
 module.exports = router;
+```
 
+```javascript
 // server/controllers/agentController.js
 exports.scanRepo = async (req, res) => {
   try {
-    // Business logic or External API call here
-    const result = { status: "active", files: [] }; 
+    const result = { status: "active", files: [] };
     res.json({ success: true, data: result, error: null });
   } catch (err) {
     res.status(500).json({ success: false, data: null, error: err.message });
   }
 };
+```
 
 ### ❌ Bad: Monolithic Logic
+
+```javascript
 // server/index.js
 app.post('/api/scan', (req, res) => {
-  const data = db.scan(); // Missing async/await and modularity
-  res.send(data); // Missing standard JSON structure
+  const data = db.scan();
+  res.send(data);
 });
-
-## 🛠 Flow Requirement
-- **Flow:** `Incoming Request` -> `index.js` -> `Router` -> `Controller` -> `Response`.
-- Always use `async/await` for database or API operations.
-- Use `dotenv` for sensitive environment variables via `process.env`.
+```
