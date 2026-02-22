@@ -1,0 +1,76 @@
+---
+alwaysApply: false
+description: React Frontend Standards - Components, Styling, UI Patterns
+globs: client/src/**/*.{tsx,ts}
+---
+
+# Frontend Standards
+
+## Framework & Setup
+- **Framework:** React 18+ with Vite.
+- **Components:** Functional components with Arrow Functions only.
+- **Styling:** Use Tailwind CSS utility classes.
+
+## Styling Strategy - Keep JSX Clean
+
+### Core Rule: Use `@apply` in `index.css` for Repeated Patterns
+
+**When to use `@apply`:**
+- Tailwind class strings longer than 3-4 utilities
+- Patterns used in 2+ components
+- Complex combinations (e.g., `p-4 bg-slate-900 rounded-lg border border-slate-800`)
+
+**Naming Convention:**
+- Use kebab-case for custom classes (e.g., `.card-container`, `.btn-primary`)
+- Prefix with component name if component-specific (e.g., `.chat-input`, `.layout-sidebar`)
+
+**File Location:**
+- All `@apply` patterns go in `client/src/index.css`
+- Keep JSX clean with semantic class names.
+
+## Component Structure
+- **Exports:** Use named exports: `export function ComponentName() {}`
+- **Props:** Define TypeScript interfaces for all props.
+- **File Organization:** One component per file, co-locate related files.
+
+## Examples
+
+### ✅ Good: Clean JSX with `@apply`
+
+```css
+/* client/src/index.css */
+.card-container {
+  @apply p-4 bg-slate-900 rounded-lg border border-slate-800;
+}
+
+.chat-input {
+  @apply flex-1 resize-none bg-transparent text-sm text-slate-100 placeholder:text-slate-600;
+}
+```
+
+```tsx
+// client/src/components/UserProfile.tsx
+import type { UserProps } from './types';
+
+export const UserProfile = ({ name }: UserProps) => {
+  return <div className="card-container">{name}</div>;
+};
+```
+
+### ❌ Bad: Long Tailwind strings in JSX
+
+```tsx
+<div className="p-4 bg-slate-900 rounded-lg border border-slate-800 shadow-sm hover:bg-slate-800 transition-colors">
+  {name}
+</div>
+```
+
+### ❌ Bad: Inline styles or function keyword
+
+```tsx
+<div style={{ padding: '1rem', backgroundColor: '#0f172a' }}>{name}</div>
+
+function UserProfile(props) {
+  return <div>{props.name}</div>;
+}
+```

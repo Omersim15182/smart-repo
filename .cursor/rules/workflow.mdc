@@ -1,0 +1,31 @@
+---
+alwaysApply: false
+description: Pipeline & Workflow Standards - Build, Test, Deployment
+---
+
+# Workflow & Pipeline Standards
+
+## Pre-commit Checks
+- **Build:** Ensure `npm run build` passes before pushing.
+- **Typecheck:** Run `tsc --noEmit` to verify TypeScript types.
+- **Dependencies:** Fix missing dependencies immediately.
+
+## CI/CD Pipeline
+- **Build Step:** Must pass before deployment.
+- **Test Step:** Run all tests and ensure they pass.
+- **Linting:** Fix linting errors before merging.
+
+## Examples
+
+### ✅ Good: Fix Dependencies First
+
+```
+"I found a missing dependency 'lucide-react' in client/package.json.
+Installing it now before fixing the component."
+```
+
+### ❌ Bad: Ignore Build Failures
+
+```
+"The build failed. I will ignore it and just change the UI code."
+```
