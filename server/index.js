@@ -32,42 +32,46 @@ app.post("/mcp/chat", async (req, res) => {
     if (!mcpClient.transport) await mcpClient.connect(transport);
     const { tools: mcpTools } = await mcpClient.listTools();
 
-    // --- FIX STARTS HERE ---
-    // Map MCP "inputSchema" to Gemini "parameters"
     const geminiFormattedTools = mcpTools.map((tool) => ({
       name: tool.name,
       description: tool.description,
-      parameters: tool.inputSchema, // Gemini needs 'parameters', MCP provides 'inputSchema'
+      parameters: tool.inputSchema,
     }));
 
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-3.0.0-flash",
       tools: [{ functionDeclarations: geminiFormattedTools }],
     });
-    // --- FIX ENDS HERE ---
 
     const chat = model.startChat();
     let result = await chat.sendMessage(message);
-    let call = result.response.functionCalls()?.[0];
 
-    if (call) {
-      const toolResult = await mcpClient.callTool({
-        name: call.name,
-        arguments: call.args,
-      });
+    while (result.response.functionCalls()?.length > 0) {
+      const calls = result.response.functionCalls();
+      const functionResponses = [];
 
-      result = await chat.sendMessage([
-        {
+      for (const call of calls) {
+        console.log(`Executing tool: ${call.name} with args:`, call.args);
+
+        const toolResult = await mcpClient.callTool({
+          name: call.name,
+          arguments: call.args,
+        });
+
+        functionResponses.push({
           functionResponse: {
             name: call.name,
             response: { content: toolResult.content[0].text },
           },
-        },
-      ]);
+        });
+      }
+
+      result = await chat.sendMessage(functionResponses);
     }
 
     res.json({ success: true, response: result.response.text() });
   } catch (error) {
+    console.error("Error details:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
