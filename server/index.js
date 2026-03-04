@@ -1,106 +1,62 @@
 import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import Groq from "groq-sdk";
-import dotenv from "dotenv";
+import groqService from "./AI/groq.js";
+dotenv.config();
 
-dotenv.config({ override: true }); // This forces .env to win
 const app = express();
+const port = process.env.PORT || 3000;
+
+app.use(cors());
 app.use(express.json());
 
-const rawKey = process.env.GROQ_API_KEY || "";
-const cleanKey = rawKey
-  .trim()
-  .replace(/^<|>$ /g, "")
-  .trim();
-
-const groq = new Groq({ apiKey: cleanKey });
-console.log("✅ Groq is connected");
-
-// 1. Setup MCP Connection
+// Connect to MCP server
 const transport = new StdioClientTransport({
   command: "node",
-  args: ["mcpServer.js"],
+  args: ["./mcp/mcpServer.js"],
 });
 
-const mcpClient = new Client(
-  { name: "groq-host", version: "1.0.0" },
-  { capabilities: {} },
-);
-
-// Connect once at startup
+const mcpClient = new Client({ name: "express-client", version: "1.0.0" });
 await mcpClient.connect(transport);
 
-app.post("/mcp/chat", async (req, res) => {
-  console.log("Full Body:", req.body); // Check if this is {} or has data
+app.post("/agent", async (req, res) => {
   const { message } = req.body;
+
   try {
-    // 2. Fetch tools only once per request
-    const { tools: mcpTools } = await mcpClient.listTools();
-    const formattedTools = mcpTools.map((tool) => ({
-      type: "function",
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.inputSchema,
-      },
-    }));
+    const intent = await groqService.extractIntent(message);
+    console.log("Intent:", intent);
 
-    let messages = [
-      {
-        role: "system",
-        content: "You are a helpful assistant with access to GitHub tools.",
-      },
-      { role: "user", content: message },
-    ];
+    let result;
 
-    // 3. Start Chat Loop
-    let response = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile", // Replaced with a valid Groq model
-      messages,
-      tools: formattedTools,
-      tool_choice: "auto",
-    });
-
-    let assistantMessage = response.choices[0].message;
-
-    // 4. Fix: Handle tool_calls loop (Groq uses tool_calls, not function_call)
-    while (assistantMessage.tool_calls) {
-      messages.push(assistantMessage);
-
-      for (const toolCall of assistantMessage.tool_calls) {
-        const name = toolCall.function.name;
-        const args = JSON.parse(toolCall.function.arguments);
-
-        console.log(`Executing tool: ${name}`);
-
-        const toolResult = await mcpClient.callTool({
-          name,
-          arguments: args,
-        });
-
-        messages.push({
-          role: "tool", // Role must be 'tool' for Groq/OpenAI
-          tool_call_id: toolCall.id, // Must provide the ID
-          content: toolResult.content[0].text,
-        });
-      }
-
-      // Get next turn from Groq
-      response = await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
-        messages,
+    if (intent === "pipeline") {
+      const { repo, branch, shouldFetchLogs } =
+        await groqService.extractPipelineParams(message);
+      result = await mcpClient.callTool({
+        name: "get_pipeline_status",
+        arguments: { repo, branch, shouldFetchLogs },
       });
-      assistantMessage = response.choices[0].message;
+    } else if (intent === "issue") {
+      const { repo, title, body, labels } =
+        await groqService.extractIssueParams(message);
+      result = await mcpClient.callTool({
+        name: "create_issue",
+        arguments: { repo, title, body, labels },
+      });
+    } else {
+      return res.json({
+        success: false,
+        data: "I didn't understand the request. Try asking to check a pipeline or create an issue.",
+      });
     }
 
-    res.json({ success: true, response: assistantMessage.content });
+    res.json({ success: true, data: result.content[0].text });
   } catch (error) {
-    console.error("Error details:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-app.listen(3001, () =>
-  console.log("🚀 Bridge running at http://localhost:3001/mcp/chat"),
-);
+app.listen(port, () => {
+  console.log(`Server listening on http://localhost:${port}`);
+});
