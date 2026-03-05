@@ -12,7 +12,6 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Connect to MCP server
 const transport = new StdioClientTransport({
   command: "node",
   args: ["./mcp/mcpServer.js"],
@@ -25,33 +24,35 @@ app.post("/agent", async (req, res) => {
   const { message } = req.body;
 
   try {
-    const intent = await groqService.extractIntent(message);
-    console.log("Intent:", intent);
+    const { type, content, toolCalls } =
+      await groqService.getToolCalls(message);
 
-    let result;
-
-    if (intent === "pipeline") {
-      const { repo, branch, shouldFetchLogs } =
-        await groqService.extractPipelineParams(message);
-      result = await mcpClient.callTool({
-        name: "get_pipeline_status",
-        arguments: { repo, branch, shouldFetchLogs },
-      });
-    } else if (intent === "issue") {
-      const { repo, title, body, labels } =
-        await groqService.extractIssueParams(message);
-      result = await mcpClient.callTool({
-        name: "create_issue",
-        arguments: { repo, title, body, labels },
-      });
-    } else {
-      return res.json({
-        success: false,
-        data: "I didn't understand the request. Try asking to check a pipeline or create an issue.",
-      });
+    if (type === "text") {
+      return res.json({ success: true, data: content, toolResults: [] });
     }
 
-    res.json({ success: true, data: result.content[0].text });
+    const toolResults = await Promise.all(
+      toolCalls.map(async ({ id, toolName, args }) => {
+        console.log(`Calling tool: ${toolName}`, args);
+        try {
+          const result = await mcpClient.callTool({
+            name: toolName,
+            arguments: args,
+          });
+          return {
+            id,
+            toolName,
+            args,
+            result: result.content[0].text,
+            error: null,
+          };
+        } catch (err) {
+          return { id, toolName, args, result: null, error: err.message };
+        }
+      }),
+    );
+
+    res.json({ success: true, toolResults });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

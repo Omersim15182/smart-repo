@@ -18,6 +18,18 @@ class ToolSchemas {
         .describe(
           "If true, will attempt to retrieve the failure logs if the run failed",
         ),
+
+      limit: z
+        .number()
+        .default(1)
+        .describe("Number of pipeline runs to return. Default is 1."),
+
+      commit: z
+        .string()
+        .optional()
+        .describe(
+          "Filter runs by commit message, e.g. 'test login and register'",
+        ),
     });
 
     this.createIssue = z.object({

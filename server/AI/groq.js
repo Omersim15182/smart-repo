@@ -1,83 +1,51 @@
 import Groq from "groq-sdk";
 import dotenv from "dotenv";
+import TOOLS from "./tools.js";
+
 dotenv.config({ override: true });
+
+const SYSTEM_PROMPT = `
+You are a GitHub assistant. Use the available tools to fulfill user requests.
+You can call multiple tools in parallel if the user's message requires it.
+Always extract repo in "owner/repo" format.
+If the user mentions a number of runs/pipelines (e.g. "last 5", "show 3"), extract it as the limit parameter.
+`;
+
 class GroqService {
   constructor() {
     const rawKey = process.env.GROQ_API_KEY || "";
     const cleanKey = rawKey.trim().replace(/^<|>$/g, "").trim();
     console.log("cleankey", cleanKey);
-
     this.groq = new Groq({ apiKey: cleanKey });
   }
 
-  safeParseJSON(content) {
-    const cleaned = content.replace(/```json|```/g, "").trim();
-    return JSON.parse(cleaned);
-  }
-
-  async extractIntent(message) {
+  async getToolCalls(message) {
     const response = await this.groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
-      max_tokens: 10,
+      max_tokens: 1000,
       temperature: 0,
+      tools: TOOLS,
+      tool_choice: "auto",
       messages: [
-        {
-          role: "system",
-          content: `You are an intent classifier. Return ONLY one word: "pipeline" or "issue".`,
-        },
-        {
-          role: "user",
-          content: `Classify this message: "${message}"`,
-        },
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: message },
       ],
     });
 
-    return response.choices[0].message.content.trim().toLowerCase();
-  }
+    const choice = response.choices[0];
+    console.log("choice:", choice.message.tool_calls);
 
-  async extractPipelineParams(message) {
-    const response = await this.groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      max_tokens: 200,
-      temperature: 0,
-      messages: [
-        {
-          role: "system",
-          content: "You are a precise data extractor. Return ONLY raw JSON.",
-        },
-        {
-          role: "user",
-          content: `Extract GitHub pipeline parameters from this message. 
-          - repo: always format as "owner/repo" (e.g if user says "owner omersim15182 repo cypress-web-automation" return "omersim15182/cypress-web-automation")
-          - branch: extract branch name if mentioned in any format like "branch main", "on main", "in branch CI/CD", "branch called feature/login" — if not mentioned set to null
-          - shouldFetchLogs: boolean, default true
-          
-Return ONLY raw JSON. Message: "${message}"`,
-        },
-      ],
-    });
+    if (choice.finish_reason !== "tool_calls") {
+      return { type: "text", content: choice.message.content, toolCalls: [] };
+    }
 
-    return this.safeParseJSON(response.choices[0].message.content);
-  }
+    const toolCalls = choice.message.tool_calls.map((tc) => ({
+      id: tc.id,
+      toolName: tc.function.name,
+      args: JSON.parse(tc.function.arguments),
+    }));
 
-  async extractIssueParams(message) {
-    const response = await this.groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      max_tokens: 300,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Extract issue details. Return ONLY JSON with: repo (format: 'owner/repo'), title, body, labels (array).",
-        },
-        {
-          role: "user",
-          content: `Extract the GitHub issue parameters from this message: "${message}"`,
-        },
-      ],
-    });
-
-    return this.safeParseJSON(response.choices[0].message.content);
+    return { type: "tool_calls", toolCalls };
   }
 }
 

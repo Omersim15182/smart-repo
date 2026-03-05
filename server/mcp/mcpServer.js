@@ -15,8 +15,14 @@ server.registerTool(
     description: "Get GitHub pipeline status for a repository and branch",
     inputSchema: toolSchemas.pipeline.shape,
   },
-  async ({ repo, branch, shouldFetchLogs }) => {
-    console.error("MCP received:", { repo, branch, shouldFetchLogs });
+  async ({ repo, branch, shouldFetchLogs, limit, commit }) => {
+    console.error("MCP received:", {
+      repo,
+      branch,
+      shouldFetchLogs,
+      limit,
+      commit,
+    });
     console.error(
       "GITHUB_TOKEN:",
       process.env.GITHUB_TOKEN ? "✅ loaded" : "❌ missing",
@@ -26,6 +32,8 @@ server.registerTool(
       repo,
       branch,
       shouldFetchLogs,
+      limit,
+      commit,
     );
     console.error("GitHub result:", result);
 
