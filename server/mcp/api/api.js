@@ -1,30 +1,21 @@
-import axios from "axios";
+import { Octokit } from "octokit";
 import dotenv from "dotenv";
 dotenv.config({ override: true });
+
 /**
- * Service class for interacting with GitHub REST API via Axios.
- * Handles Pipeline (Actions) status and Issue management.
+ * Service class for interacting with GitHub REST API via Octokit.
+ * Optimized for smart-repo to handle Pipelines and Issues.
  */
 class GitHubService {
-  /**
-   */
   constructor() {
-    this.client = axios.create({
-      baseURL: "https://api.github.com",
-      headers: {
-        Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-    });
-    this.client.interceptors.request.use((config) => {
-      config.headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-      return config;
+    // אתחול הלקוח הרשמי של GitHub
+    this.octokit = new Octokit({
+      auth: process.env.GITHUB_TOKEN,
     });
   }
 
   /**
-   * Retrieves the status of the latest workflow run and identifies failed jobs.
+   * Retrieves the status of the latest workflow runs and identifies failed jobs.
    */
   async getPipelineStatus(
     fullRepo,
@@ -36,24 +27,22 @@ class GitHubService {
     try {
       const [owner, repo] = fullRepo.split("/");
 
-      const perPage = commit ? 50 : limit;
-
-      const { data } = await this.client.get(
-        `/repos/${owner}/${repo}/actions/runs`,
-        { params: { per_page: perPage, ...(branch && { branch }) } },
-      );
+      // שליפת ה-Workflow Runs באמצעות Octokit
+      // במידה ויש חיפוש לפי קומיט, נשלוף יותר נתונים כדי שנוכל לסנן
+      const { data } = await this.octokit.rest.actions.listWorkflowRunsForRepo({
+        owner,
+        repo,
+        branch: branch || undefined,
+        per_page: commit ? 50 : limit,
+      });
 
       if (!data.workflow_runs.length) {
         return `No pipeline runs found for ${fullRepo}${branch ? ` on branch ${branch}` : ""}.`;
       }
 
-      // Filter by commit message manually
       let runs = data.workflow_runs;
-      console.error(
-        "All commit messages:",
-        runs.map((r) => r.head_commit.message),
-      );
 
+      // סינון לפי הודעת קומיט (בדומה ללוגיקה הקודמת שלך)
       if (commit) {
         runs = runs.filter((r) =>
           r.head_commit.message.toLowerCase().includes(commit.toLowerCase()),
@@ -64,7 +53,9 @@ class GitHubService {
         }
       }
 
+      // חיתוך לפי ה-limit המבוקש
       runs = runs.slice(0, limit);
+
       const summaries = await Promise.all(
         runs.map(async (run, index) => {
           let summary = [
@@ -79,27 +70,40 @@ class GitHubService {
             `🔑 Commit SHA: ${run.head_sha.substring(0, 7)}`,
           ].join("\n");
 
+          // אם הריצה נכשלה, שולפים את ה-Jobs שנכשלו
           if (run.conclusion === "failure" && shouldFetchLogs) {
-            const { data: jobData } = await this.client.get(
-              `/repos/${owner}/${repo}/actions/runs/${run.id}/jobs`,
-            );
+            const { data: jobData } =
+              await this.octokit.rest.actions.listJobsForWorkflowRun({
+                owner,
+                repo,
+                run_id: run.id,
+              });
+
             const failures = jobData.jobs
               .filter((j) => j.conclusion === "failure")
               .map(
                 (j) =>
-                  `  - ❌ Job "${j.name}" failed (Step: ${j.steps.find((s) => s.conclusion === "failure")?.name || "unknown"})`,
+                  `  - ❌ Job "${j.name}" failed (Step: ${
+                    j.steps.find((s) => s.conclusion === "failure")?.name ||
+                    "unknown"
+                  })`,
               )
               .join("\n");
 
-            summary += `\n\nDetected Failures:\n${failures}`;
+            if (failures) {
+              summary += `\n\nDetected Failures:\n${failures}`;
+            }
           }
 
           return summary;
         }),
       );
+
       return summaries.join("\n");
     } catch (error) {
-      return `GitHub API Error: ${error.response?.data?.message || error.message}`;
+      // Octokit מחזירה שגיאות בצורה מסודרת ב-error.status וב-error.response
+      const message = error.response?.data?.message || error.message;
+      return `GitHub API Error: ${message}`;
     }
   }
 
@@ -109,17 +113,19 @@ class GitHubService {
   async createIssue(fullRepo, { title, body, labels = ["bug"] }) {
     try {
       const [owner, repo] = fullRepo.split("/");
-      const { data } = await this.client.post(
-        `/repos/${owner}/${repo}/issues`,
-        {
-          title,
-          body,
-          labels,
-        },
-      );
+
+      const { data } = await this.octokit.rest.issues.create({
+        owner,
+        repo,
+        title,
+        body,
+        labels,
+      });
+
       return `✅ Issue created successfully: ${data.html_url}`;
     } catch (error) {
-      return `Failed to create issue: ${error.response?.data?.message || error.message}`;
+      const message = error.response?.data?.message || error.message;
+      return `Failed to create issue: ${message}`;
     }
   }
 }

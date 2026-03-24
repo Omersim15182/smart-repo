@@ -17,7 +17,7 @@ const transport = new StdioClientTransport({
   args: ["./mcp/mcpServer.js"],
 });
 
-const mcpClient = new Client({ name: "express-client", version: "1.0.0" });
+const mcpClient = new Client({ name: "smart-repo-client", version: "1.0.0" });
 await mcpClient.connect(transport);
 
 app.post("/agent", async (req, res) => {
@@ -33,7 +33,6 @@ app.post("/agent", async (req, res) => {
 
     const toolResults = await Promise.all(
       toolCalls.map(async ({ id, toolName, args }) => {
-        console.log(`Calling tool: ${toolName}`, args);
         try {
           const result = await mcpClient.callTool({
             name: toolName,
