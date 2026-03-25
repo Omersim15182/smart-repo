@@ -10,7 +10,7 @@ dotenv.config({ override: true });
 class GitHubService {
   constructor() {
     this.octokit = new Octokit({
-      auth: process.env.GITHUB_TOKEN,
+      auth: process.env.GIT_TOKEN,
     });
   }
 
