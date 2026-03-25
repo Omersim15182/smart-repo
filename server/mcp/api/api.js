@@ -8,7 +8,6 @@ dotenv.config({ override: true });
  */
 class GitHubService {
   constructor() {
-    // אתחול הלקוח הרשמי של GitHub
     this.octokit = new Octokit({
       auth: process.env.GITHUB_TOKEN,
     });
@@ -27,8 +26,6 @@ class GitHubService {
     try {
       const [owner, repo] = fullRepo.split("/");
 
-      // שליפת ה-Workflow Runs באמצעות Octokit
-      // במידה ויש חיפוש לפי קומיט, נשלוף יותר נתונים כדי שנוכל לסנן
       const { data } = await this.octokit.rest.actions.listWorkflowRunsForRepo({
         owner,
         repo,
@@ -42,7 +39,6 @@ class GitHubService {
 
       let runs = data.workflow_runs;
 
-      // סינון לפי הודעת קומיט (בדומה ללוגיקה הקודמת שלך)
       if (commit) {
         runs = runs.filter((r) =>
           r.head_commit.message.toLowerCase().includes(commit.toLowerCase()),
@@ -53,7 +49,6 @@ class GitHubService {
         }
       }
 
-      // חיתוך לפי ה-limit המבוקש
       runs = runs.slice(0, limit);
 
       const summaries = await Promise.all(
@@ -70,7 +65,6 @@ class GitHubService {
             `🔑 Commit SHA: ${run.head_sha.substring(0, 7)}`,
           ].join("\n");
 
-          // אם הריצה נכשלה, שולפים את ה-Jobs שנכשלו
           if (run.conclusion === "failure" && shouldFetchLogs) {
             const { data: jobData } =
               await this.octokit.rest.actions.listJobsForWorkflowRun({
@@ -101,7 +95,6 @@ class GitHubService {
 
       return summaries.join("\n");
     } catch (error) {
-      // Octokit מחזירה שגיאות בצורה מסודרת ב-error.status וב-error.response
       const message = error.response?.data?.message || error.message;
       return `GitHub API Error: ${message}`;
     }
