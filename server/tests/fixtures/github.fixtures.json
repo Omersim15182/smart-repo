@@ -19,7 +19,8 @@
       "commit": null
     },
     "withLogs": {
-      "branch": "main",
+      "fullRepoName": "omersim15182/cypress-web-automation",
+      "branch": "CI/CD",
       "limit": 1,
       "shouldFetchLogs": true,
       "commit": null

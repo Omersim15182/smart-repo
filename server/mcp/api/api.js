@@ -1,4 +1,5 @@
 import { Octokit } from "octokit";
+import Message from "./helpers/messages.js";
 import dotenv from "dotenv";
 dotenv.config({ override: true });
 
@@ -53,17 +54,7 @@ class GitHubService {
 
       const summaries = await Promise.all(
         runs.map(async (run, index) => {
-          let summary = [
-            `\n--- Run ${index + 1} ---`,
-            `📍 Pipeline: ${run.name}`,
-            `🏁 Status: ${run.status}`,
-            `✅ Conclusion: ${run.conclusion || "Running"}`,
-            `🌿 Branch: ${run.head_branch}`,
-            `👤 Triggered by: ${run.triggering_actor.login}`,
-            `🕐 Started at: ${new Date(run.run_started_at).toLocaleString()}`,
-            `📝 Commit: ${run.head_commit.message.split("\n")[0]}`,
-            `🔑 Commit SHA: ${run.head_sha.substring(0, 7)}`,
-          ].join("\n");
+          let summary = Message.runSummary(run, index);
 
           if (run.conclusion === "failure" && shouldFetchLogs) {
             const { data: jobData } =
@@ -73,19 +64,38 @@ class GitHubService {
                 run_id: run.id,
               });
 
-            const failures = jobData.jobs
-              .filter((j) => j.conclusion === "failure")
-              .map(
-                (j) =>
-                  `  - ❌ Job "${j.name}" failed (Step: ${
-                    j.steps.find((s) => s.conclusion === "failure")?.name ||
-                    "unknown"
-                  })`,
-              )
-              .join("\n");
+            const failureResults = await Promise.all(
+              jobData.jobs
+                .filter((j) => j.conclusion === "failure")
+                .map(async (j) => {
+                  const failedStep = j.steps.find(
+                    (s) => s.conclusion === "failure",
+                  );
 
-            if (failures) {
-              summary += `\n\nDetected Failures:\n${failures}`;
+                  const logsResponse =
+                    await this.octokit.rest.actions.downloadJobLogsForWorkflowRun(
+                      {
+                        owner,
+                        repo,
+                        job_id: j.id,
+                      },
+                    );
+
+                  const relevantLogs = logsResponse.data
+                    .split("\n")
+                    .filter(
+                      (line) =>
+                        line.includes("Error") || line.includes("failed"),
+                    )
+                    .slice(0, 5)
+                    .join("\n     ");
+
+                  return Message.jobFailure(j, failedStep, relevantLogs);
+                }),
+            );
+
+            if (failureResults.length) {
+              summary += `\n\nDetected Failures:\n${failureResults.join("\n")}`;
             }
           }
 

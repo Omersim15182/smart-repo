@@ -35,4 +35,21 @@ describe("GitHub API test", () => {
     expect(result).toContain("Pipeline");
     expect(result).toContain("Status");
   });
+
+  test("returns failed job details when shouldFetchLogs is true", async () => {
+    const { fullRepoName, branch, shouldFetchLogs, limit, commit } =
+      fixtures.PIPELINES.withLogs;
+
+    const result = await githubAPI.getPipelineStatus(
+      fullRepoName,
+      branch,
+      shouldFetchLogs,
+      100,
+      "update for run pipline test",
+    );
+
+    console.log("Result:", result);
+    expect(result).toContain("Pipeline");
+    expect(result).toContain("Detected Failures");
+  });
 });
