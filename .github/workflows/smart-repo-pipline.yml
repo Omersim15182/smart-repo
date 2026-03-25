@@ -31,7 +31,7 @@ jobs:
       - name: Run Jest tests
         run: npm test
         env:
-          GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
+          GIT_TOKEN: ${{ secrets.github-tk }}
 
   create-pr:
     runs-on: ubuntu-latest
