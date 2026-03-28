@@ -15,7 +15,6 @@ class GroqService {
   constructor() {
     const rawKey = process.env.GROQ_API_KEY || "";
     const cleanKey = rawKey.trim().replace(/^<|>$/g, "").trim();
-    console.log("cleankey", cleanKey);
     this.groq = new Groq({ apiKey: cleanKey });
   }
 
@@ -34,6 +33,7 @@ class GroqService {
 
     const choice = response.choices[0];
     console.log("choice:", choice.message.tool_calls);
+    console.log("text:", response.choices[0].message.content);
 
     if (choice.finish_reason !== "tool_calls") {
       return { type: "text", content: choice.message.content, toolCalls: [] };

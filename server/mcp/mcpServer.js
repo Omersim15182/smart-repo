@@ -24,8 +24,8 @@ server.registerTool(
       commit,
     });
     console.error(
-      "GITHUB_TOKEN:",
-      process.env.GITHUB_TOKEN ? "✅ loaded" : "❌ missing",
+      "GIT_TOKEN:",
+      process.env.GIT_TOKEN ? "✅ loaded" : "❌ missing",
     );
 
     const result = await githubAPI.getPipelineStatus(
@@ -52,8 +52,8 @@ server.registerTool(
   async ({ repo, title, body, labels }) => {
     console.error("MCP received:", { repo, title, body, labels });
     console.error(
-      "GITHUB_TOKEN:",
-      process.env.GITHUB_TOKEN ? "✅ loaded" : "❌ missing",
+      "GIT_TOKEN:",
+      process.env.GIT_TOKEN ? "✅ loaded" : "❌ missing",
     );
 
     const result = await githubAPI.createIssue(repo, { title, body, labels });

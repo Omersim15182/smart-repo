@@ -1,0 +1,53 @@
+name: Jest Tests
+
+on:
+  push:
+    branches:
+      - CI/CD
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Jest tests
+        run: npm test
+        env:
+          GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
+
+  create-pr:
+    runs-on: ubuntu-latest
+    needs: test
+    if: success()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Pull Request to master
+        run: |
+          gh pr create \
+            --base master \
+            --head CI/CD \
+            --title "✅ CI/CD passed - merge to master" \
+            --body "All tests passed. Ready to merge to master."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

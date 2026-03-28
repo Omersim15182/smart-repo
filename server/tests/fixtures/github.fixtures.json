@@ -1,0 +1,35 @@
+{
+  "REPOS": {
+    "cypress": "omersim15182/cypress-web-automation",
+    "errorRepo": "omersim15182/error-repo"
+  },
+  "ISSUES": {
+    "basic": {
+      "title": "Test issue from Jest",
+      "body": "This is a test issue created by automated test.",
+      "labels": ["bug"]
+    }
+  },
+ "PIPELINES": {
+    "basic": {
+      "fullRepoName": "omersim15182/cypress-web-automation",
+      "branch": "CI/CD",
+      "shouldFetchLogs": false,
+      "limit": 1,
+      "commit": null
+    },
+    "withLogs": {
+      "fullRepoName": "omersim15182/cypress-web-automation",
+      "branch": "CI/CD",
+      "limit": 1,
+      "shouldFetchLogs": true,
+      "commit": null
+    },
+    "withCommit": {
+      "branch": "main",
+      "limit": 1,
+      "shouldFetchLogs": false,
+      "commit": "fix"
+    }
+  }
+}
