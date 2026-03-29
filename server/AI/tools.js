@@ -2,8 +2,9 @@ const TOOLS = [
   {
     type: "function",
     function: {
-      name: "get_pipeline_status",
-      description: "Get GitHub pipeline status for a repository and branch",
+      name: "get_latest_runs",
+      description:
+        "Get the status of the latest pipeline runs for a repository.",
       parameters: {
         type: "object",
         properties: {
@@ -11,30 +12,61 @@ const TOOLS = [
             type: "string",
             description: "The full repository name, e.g., 'owner/project'",
           },
-          branch: {
-            type: "string",
-            description: "The branch to check for the latest pipeline run",
-            default: "main",
-          },
-          shouldFetchLogs: {
-            type: "boolean",
-            description:
-              "If true, will attempt to retrieve the failure logs if the run failed",
-            default: true,
-          },
           limit: {
             type: "number",
-            description:
-              "How many pipeline runs to return, e.g. 'show 5 last runs' → 5. Default is 1.",
-            default: 1,
+            description: "Number of runs to show. Default is 5.",
+            default: 5,
           },
-          commit: {
+          branch: {
             type: "string",
-            description:
-              "Filter runs by commit message, e.g. 'test login and register'",
+            description: "Optional branch to filter by.",
           },
         },
         required: ["repo"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_status_by_commit",
+      description:
+        "Search for a specific pipeline status using a commit message.",
+      parameters: {
+        type: "object",
+        properties: {
+          repo: {
+            type: "string",
+            description: "The full repository name, e.g., 'owner/project'",
+          },
+          commit: {
+            type: "string",
+            description: "The commit message to search for.",
+          },
+        },
+        required: ["repo", "commit"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_failure_details",
+      description:
+        "Deep dive into a failed pipeline to see specific error logs and why it failed.",
+      parameters: {
+        type: "object",
+        properties: {
+          repo: {
+            type: "string",
+            description: "The full repository name, e.g., 'owner/project'",
+          },
+          commit: {
+            type: "string",
+            description: "The commit message of the failed run to analyze.",
+          },
+        },
+        required: ["repo", "commit"],
       },
     },
   },
@@ -50,10 +82,7 @@ const TOOLS = [
             type: "string",
             description: "The full repository name, e.g., 'owner/repo'",
           },
-          title: {
-            type: "string",
-            description: "Issue title, e.g., 'Fix: Unit tests failing'",
-          },
+          title: { type: "string", description: "Issue title" },
           body: {
             type: "string",
             description: "Detailed explanation of the problem",
@@ -61,7 +90,6 @@ const TOOLS = [
           labels: {
             type: "array",
             items: { type: "string" },
-            description: "Labels to apply to the issue",
             default: ["bug"],
           },
         },

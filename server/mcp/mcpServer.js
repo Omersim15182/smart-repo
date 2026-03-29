@@ -3,43 +3,52 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import toolSchemas from "./schema/schemaMcp.js";
 import githubAPI from "./api/api.js";
 
-// Create server instance
 const server = new McpServer({
   name: "github-repo",
   version: "1.0.0",
 });
 
 server.registerTool(
-  "get_pipeline_status",
+  "get_latest_runs",
   {
-    description: "Get GitHub pipeline status for a repository and branch",
-    inputSchema: toolSchemas.pipeline.shape,
+    description: "Get the status of the latest pipeline runs for a repository.",
+    inputSchema: toolSchemas.getLatestRuns.shape,
   },
-  async ({ repo, branch, shouldFetchLogs, limit, commit }) => {
-    console.error("MCP received:", {
-      repo,
-      branch,
-      shouldFetchLogs,
-      limit,
-      commit,
-    });
-    console.error(
-      "GIT_TOKEN:",
-      process.env.GIT_TOKEN ? "✅ loaded" : "❌ missing",
+  async (args) => {
+    const result = await githubAPI.getLatestRuns(
+      args.repo,
+      args.limit,
+      args.branch,
     );
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  },
+);
 
-    const result = await githubAPI.getPipelineStatus(
-      repo,
-      branch,
-      shouldFetchLogs,
-      limit,
-      commit,
+server.registerTool(
+  "get_status_by_commit",
+  {
+    description:
+      "Search for a specific pipeline status using a commit message.",
+    inputSchema: toolSchemas.getStatusByCommit.shape,
+  },
+  async (args) => {
+    const result = await githubAPI.getStatusByCommit(args.repo, args.commit);
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  },
+);
+
+server.registerTool(
+  "get_failure_details",
+  {
+    description: "Deep dive into a failed pipeline to see specific error logs.",
+    inputSchema: toolSchemas.getFailureDetails.shape,
+  },
+  async (args) => {
+    const result = await githubAPI.getFailureDetailsByCommit(
+      args.repo,
+      args.commit,
     );
-    console.error("GitHub result:", result);
-
-    return {
-      content: [{ type: "text", text: result }],
-    };
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
   },
 );
 
@@ -49,21 +58,12 @@ server.registerTool(
     description: "Create a GitHub issue in a repository",
     inputSchema: toolSchemas.createIssue.shape,
   },
-  async ({ repo, title, body, labels }) => {
-    console.error("MCP received:", { repo, title, body, labels });
-    console.error(
-      "GIT_TOKEN:",
-      process.env.GIT_TOKEN ? "✅ loaded" : "❌ missing",
-    );
-
-    const result = await githubAPI.createIssue(repo, { title, body, labels });
-    console.error("GitHub result:", result);
-
-    return {
-      content: [{ type: "text", text: result }],
-    };
+  async (args) => {
+    const result = await githubAPI.createIssue(args.repo, args);
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
   },
 );
+
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);

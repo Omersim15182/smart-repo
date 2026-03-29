@@ -22,6 +22,12 @@ class Message {
       `     Error:\n     ${relevantLogs || "No error details found"}`,
     ].join("\n");
   }
+
+  static stripAnsi(text) {
+    const ansiRegex =
+      /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-z]/g;
+    return text.replace(ansiRegex, "");
+  }
 }
 
 export default Message;
