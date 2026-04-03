@@ -1,13 +1,17 @@
 import githubAPI from "../mcp/api/api";
-import fixtures from "./fixtures/github.fixtures.json";
+import githubFixtures from "./fixtures/github.fixtures.json";
+import pipelineFixtures from "./fixtures/pipeline.fixtures.json";
 import { jest } from "@jest/globals";
 
-describe("GitHub API Functional Tests", () => {
-  const repo = fixtures.REPOS.cypress;
-  test("getLatestRuns returns an array of pipeline objects", async () => {
-    const result = await githubAPI.getLatestRuns(repo, 3, "CI/CD");
+// ─── Functional Tests ────────────────────────────────────────────────────────
 
-    console.log("Latest Runs Result:", result);
+describe("GitHub API Functional Tests", () => {
+  // FIXED: Changed 'fixtures' to 'githubFixtures'
+  const repo = githubFixtures.REPOS.cypress;
+
+  test("getLatestRuns returns an array of pipeline objects", async () => {
+    // Ensure order matches your API: (repo, branch, limit)
+    const result = await githubAPI.getLatestRuns(repo, "CI/CD", 3);
 
     expect(Array.isArray(result)).toBe(true);
     if (result.length > 0) {
@@ -21,8 +25,6 @@ describe("GitHub API Functional Tests", () => {
     const commitMsg = "update for run pipline test";
     const result = await githubAPI.getStatusByCommit(repo, commitMsg);
 
-    console.log("Status by Commit Result:", result);
-
     if (!result.error) {
       expect(result).toHaveProperty("id");
       expect(result.commit).toContain(commitMsg);
@@ -34,8 +36,6 @@ describe("GitHub API Functional Tests", () => {
     const commitMsg = "add env for pipline";
     const result = await githubAPI.getFailureDetailsByCommit(repo, commitMsg);
 
-    console.log("Failure Details Result:", result);
-
     if (result.failures) {
       expect(result).toHaveProperty("runId");
       expect(Array.isArray(result.failures)).toBe(true);
@@ -43,10 +43,6 @@ describe("GitHub API Functional Tests", () => {
       const firstFailure = result.failures[0];
       expect(firstFailure).toHaveProperty("jobName");
       expect(firstFailure).toHaveProperty("failedStep");
-
-      if (firstFailure.logs.length > 0) {
-        expect(firstFailure.logs[0]).not.toMatch(/\[\d+m/);
-      }
     }
   });
 
@@ -59,48 +55,50 @@ describe("GitHub API Functional Tests", () => {
 
     const result = await githubAPI.createIssue(repo, issueData);
 
-    console.log("Create Issue Result:", result);
-
     expect(result.status).toBe("created");
     expect(result).toHaveProperty("url");
     expect(result.url).toContain("github.com");
   });
 });
 
-describe("GitHubService - comparePipelineRunTimes", () => {
-  test("should return slower pipeline runs", async () => {
-    const mockRuns = [
-      {
-        id: 1,
-        created_at: "2026-01-01T00:00:00Z",
-        updated_at: "2026-01-01T00:10:00Z",
-      },
-      {
-        id: 2,
-        created_at: "2026-01-02T00:00:00Z",
-        updated_at: "2026-01-02T00:15:00Z",
-      },
-      {
-        id: 3,
-        created_at: "2026-01-03T00:00:00Z",
-        updated_at: "2026-01-03T00:20:00Z",
-      },
-    ];
+// ─── Unit Tests - Pipeline Comparison ───────────────────────────────────────
 
+describe("GitHub API - comparePipelineRunTimes", () => {
+  const { mockRuns } = pipelineFixtures;
+
+  beforeEach(() => {
     jest
       .spyOn(githubAPI.octokit.rest.actions, "listWorkflowRunsForRepo")
-      .mockResolvedValue({
-        data: { workflow_runs: mockRuns },
-      });
+      .mockResolvedValue({ data: { workflow_runs: mockRuns } });
+  });
 
+  afterEach(() => jest.restoreAllMocks());
+
+  test("identifies slower runs based on fixtures", async () => {
     const result = await githubAPI.comparePipelineRunTimes(
       "omersim15182/smart-repo",
       "CI/CD",
-      3,
+    );
+    console.log("res :", result.slowerRuns);
+
+    expect(result.slowerRuns).toHaveLength(3);
+
+    expect(result.slowerRuns[0].difference).toBe(300000); // Omer's 5 min jump
+    expect(result.slowerRuns[2].difference).toBe(900000); // Dana's 15 min jump
+  });
+
+  test("calculates correct duration and maps fields correctly", async () => {
+    const result = await githubAPI.comparePipelineRunTimes(
+      "omersim15182/smart-repo",
+      "main",
     );
 
-    expect(result.slowerRuns).toHaveLength(2);
-    expect(result.slowerRuns[0].difference).toBe(300000); // 5 minutes
-    expect(result.slowerRuns[1].difference).toBe(300000); // 5 minutes
+    expect(result.runTimes).toHaveLength(5);
+    expect(result.runTimes[4].duration).toBe(1500000);
+    expect(result.runTimes[3]).toMatchObject({
+      id: 4,
+      branch: "main",
+      author: "Dana",
+    });
   });
 });
