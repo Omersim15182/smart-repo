@@ -1,135 +1,140 @@
 import { Octokit } from "octokit";
-import Message from "./helpers/messages.js";
 import dotenv from "dotenv";
+import message from "./helpers/messages.js";
 dotenv.config({ override: true });
 
-/**
- * Service class for interacting with GitHub REST API via Octokit.
- * Optimized for smart-repo to handle Pipelines and Issues.
- */
 class GitHubService {
   constructor() {
     this.octokit = new Octokit({
-      auth: process.env.GITHUB_TOKEN,
+      auth: process.env.GIT_TOKEN,
     });
   }
 
-  /**
-   * Retrieves the status of the latest workflow runs and identifies failed jobs.
-   */
-  async getPipelineStatus(
-    fullRepo,
-    branch = null,
-    shouldFetchLogs = true,
-    limit = 1,
-    commit = null,
-  ) {
-    try {
-      const [owner, repo] = fullRepo.split("/");
+  _parseRepo(fullRepo) {
+    const [owner, repo] = fullRepo.split("/");
+    return { owner, repo };
+  }
 
-      const { data } = await this.octokit.rest.actions.listWorkflowRunsForRepo({
+  async getLatestRuns(fullRepo, limit = 5, branch = null) {
+    const { owner, repo } = this._parseRepo(fullRepo);
+    const { data } = await this.octokit.rest.actions.listWorkflowRunsForRepo({
+      owner,
+      repo,
+      branch: branch || undefined,
+      per_page: limit,
+    });
+
+    return data.workflow_runs.map((run) => ({
+      id: run.id,
+      name: run.name,
+      status: run.status,
+      conclusion: run.conclusion,
+      branch: run.head_branch,
+      commit: run.head_commit.message,
+      author: run.head_commit.author.name,
+      url: run.html_url,
+      created_at: run.created_at,
+    }));
+  }
+
+  async getStatusByCommit(fullRepo, commitMessage) {
+    const { owner, repo } = this._parseRepo(fullRepo);
+    const { data } = await this.octokit.rest.actions.listWorkflowRunsForRepo({
+      owner,
+      repo,
+      per_page: 50,
+    });
+
+    const run = data.workflow_runs.find((r) =>
+      r.head_commit.message.toLowerCase().includes(commitMessage.toLowerCase()),
+    );
+
+    if (!run) return { error: "Commit not found" };
+
+    return {
+      id: run.id,
+      status: run.status,
+      conclusion: run.conclusion,
+      branch: run.head_branch,
+      commit: run.head_commit.message,
+      url: run.html_url,
+    };
+  }
+
+  async getFailureDetailsByCommit(fullRepo, commitMessage) {
+    const { owner, repo } = this._parseRepo(fullRepo);
+    const { data: runData } =
+      await this.octokit.rest.actions.listWorkflowRunsForRepo({
         owner,
         repo,
-        branch: branch || undefined,
-        per_page: commit ? 50 : limit,
+        per_page: 50,
       });
 
-      if (!data.workflow_runs.length) {
-        return `No pipeline runs found for ${fullRepo}${branch ? ` on branch ${branch}` : ""}.`;
-      }
+    const run = runData.workflow_runs.find((r) =>
+      r.head_commit.message.toLowerCase().includes(commitMessage.toLowerCase()),
+    );
 
-      let runs = data.workflow_runs;
+    if (!run || run.conclusion !== "failure")
+      return { message: "No failed run found for this commit" };
 
-      if (commit) {
-        runs = runs.filter((r) =>
-          r.head_commit.message.toLowerCase().includes(commit.toLowerCase()),
-        );
+    const { data: jobData } =
+      await this.octokit.rest.actions.listJobsForWorkflowRun({
+        owner,
+        repo,
+        run_id: run.id,
+      });
 
-        if (!runs.length) {
-          return `No pipeline runs found matching commit: "${commit}"`;
-        }
-      }
-
-      runs = runs.slice(0, limit);
-
-      const summaries = await Promise.all(
-        runs.map(async (run, index) => {
-          let summary = Message.runSummary(run, index);
-
-          if (run.conclusion === "failure" && shouldFetchLogs) {
-            const { data: jobData } =
-              await this.octokit.rest.actions.listJobsForWorkflowRun({
-                owner,
-                repo,
-                run_id: run.id,
-              });
-
-            const failureResults = await Promise.all(
-              jobData.jobs
-                .filter((j) => j.conclusion === "failure")
-                .map(async (j) => {
-                  const failedStep = j.steps.find(
-                    (s) => s.conclusion === "failure",
-                  );
-
-                  const logsResponse =
-                    await this.octokit.rest.actions.downloadJobLogsForWorkflowRun(
-                      {
-                        owner,
-                        repo,
-                        job_id: j.id,
-                      },
-                    );
-
-                  const relevantLogs = logsResponse.data
-                    .split("\n")
-                    .filter(
-                      (line) =>
-                        line.includes("Error") || line.includes("failed"),
-                    )
-                    .slice(0, 5)
-                    .join("\n     ");
-
-                  return Message.jobFailure(j, failedStep, relevantLogs);
-                }),
-            );
-
-            if (failureResults.length) {
-              summary += `\n\nDetected Failures:\n${failureResults.join("\n")}`;
-            }
-          }
-
-          return summary;
+    const failures = await Promise.all(
+      jobData.jobs
+        .filter((j) => j.conclusion === "failure")
+        .map(async (job) => {
+          const logs = await this._getRelevantLogs(owner, repo, job.id);
+          return {
+            jobName: job.name,
+            failedStep: job.steps.find((s) => s.conclusion === "failure")?.name,
+            logs: logs,
+          };
         }),
-      );
+    );
 
-      return summaries.join("\n");
-    } catch (error) {
-      const message = error.response?.data?.message || error.message;
-      return `GitHub API Error: ${message}`;
+    return { runId: run.id, failures };
+  }
+
+  async _getRelevantLogs(owner, repo, jobId) {
+    try {
+      const { data } =
+        await this.octokit.rest.actions.downloadJobLogsForWorkflowRun({
+          owner,
+          repo,
+          job_id: jobId,
+        });
+
+      const cleanLogs = message.stripAnsi(data);
+      return cleanLogs
+        .split("\n")
+        .filter(
+          (line) =>
+            line.toLowerCase().includes("error") ||
+            line.toLowerCase().includes("failed") ||
+            line.toLowerCase().includes("cypresserror"),
+        )
+        .map((line) => line.trim())
+        .slice(0, 10);
+    } catch {
+      return ["Logs unavailable"];
     }
   }
 
-  /**
-   * Creates a new GitHub issue in the specified repository.
-   */
-  async createIssue(fullRepo, { title, body, labels = ["bug"] }) {
-    try {
-      const [owner, repo] = fullRepo.split("/");
-
-      const { data } = await this.octokit.rest.issues.create({
-        owner,
-        repo,
-        title,
-        body,
-        labels,
-      });
-
-      return `✅ Issue created successfully: ${data.html_url}`;
-    } catch (error) {
-      const message = error.response?.data?.message || error.message;
-      return `Failed to create issue: ${message}`;
-    }
+  async createIssue(fullRepo, { title, body, labels }) {
+    const { owner, repo } = this._parseRepo(fullRepo);
+    const { data } = await this.octokit.rest.issues.create({
+      owner,
+      repo,
+      title,
+      body,
+      labels,
+    });
+    return { url: data.html_url, id: data.number, status: "created" };
   }
 }
 
