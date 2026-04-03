@@ -52,6 +52,18 @@ server.registerTool(
   wrap((args) => githubAPI.createIssue(args.repo, args)),
 );
 
+server.registerTool(
+  "compare_pipeline_run_times",
+  {
+    description:
+      "Compare test run times of pipelines in GitHub and indicate when test times get slower.",
+    inputSchema: toolSchemas.comparePipelineRunTimes.shape,
+  },
+  wrap((args) =>
+    githubAPI.comparePipelineRunTimes(args.repo, args.branch, args.limit),
+  ),
+);
+
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);

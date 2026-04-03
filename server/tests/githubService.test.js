@@ -2,7 +2,7 @@ import githubAPI from "../mcp/api/api";
 import fixtures from "./fixtures/github.fixtures.json";
 
 describe("GitHub API Functional Tests", () => {
-  const repo = fixtures.REPOS.cypress; 
+  const repo = fixtures.REPOS.cypress;
   test("getLatestRuns returns an array of pipeline objects", async () => {
     const result = await githubAPI.getLatestRuns(repo, 3, "CI/CD");
 
@@ -44,7 +44,7 @@ describe("GitHub API Functional Tests", () => {
       expect(firstFailure).toHaveProperty("failedStep");
 
       if (firstFailure.logs.length > 0) {
-        expect(firstFailure.logs[0]).not.toMatch(/\[\d+m/); 
+        expect(firstFailure.logs[0]).not.toMatch(/\[\d+m/);
       }
     }
   });
@@ -63,5 +63,45 @@ describe("GitHub API Functional Tests", () => {
     expect(result.status).toBe("created");
     expect(result).toHaveProperty("url");
     expect(result.url).toContain("github.com");
+  });
+});
+
+import githubAPI from "../mcp/api/api.js";
+
+describe("GitHubService - comparePipelineRunTimes", () => {
+  test("should return slower pipeline runs", async () => {
+    const mockRuns = [
+      {
+        id: 1,
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:10:00Z",
+      },
+      {
+        id: 2,
+        created_at: "2026-01-02T00:00:00Z",
+        updated_at: "2026-01-02T00:15:00Z",
+      },
+      {
+        id: 3,
+        created_at: "2026-01-03T00:00:00Z",
+        updated_at: "2026-01-03T00:20:00Z",
+      },
+    ];
+
+    jest
+      .spyOn(githubAPI.octokit.rest.actions, "listWorkflowRunsForRepo")
+      .mockResolvedValue({
+        data: { workflow_runs: mockRuns },
+      });
+
+    const result = await githubAPI.comparePipelineRunTimes(
+      "omersim15182/smart-repo",
+      "CI/CD",
+      3,
+    );
+
+    expect(result.slowerRuns).toHaveLength(2);
+    expect(result.slowerRuns[0].difference).toBe(300000); // 5 minutes
+    expect(result.slowerRuns[1].difference).toBe(300000); // 5 minutes
   });
 });
