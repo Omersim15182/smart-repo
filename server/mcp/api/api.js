@@ -15,7 +15,7 @@ class GitHubService {
     return { owner, repo };
   }
 
-  async getLatestRuns(fullRepo, limit = 5, branch = null) {
+  async getLatestRuns(fullRepo, branch = null, limit = 5) {
     const { owner, repo } = this._parseRepo(fullRepo);
     const { data } = await this.octokit.rest.actions.listWorkflowRunsForRepo({
       owner,
