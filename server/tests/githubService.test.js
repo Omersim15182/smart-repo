@@ -1,5 +1,6 @@
 import githubAPI from "../mcp/api/api";
 import fixtures from "./fixtures/github.fixtures.json";
+import { jest } from "@jest/globals";
 
 describe("GitHub API Functional Tests", () => {
   const repo = fixtures.REPOS.cypress;
