@@ -97,6 +97,33 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "compare_pipeline_run_times",
+      description:
+        "Compare test run times of pipelines in GitHub and indicate when test times get slower.",
+      parameters: {
+        type: "object",
+        properties: {
+          repo: {
+            type: "string",
+            description: "The full repository name, e.g., 'owner/project'",
+          },
+          limit: {
+            type: "number",
+            description: "Number of pipeline runs to compare. Default is 5.",
+            default: 5,
+          },
+          branch: {
+            type: "string",
+            description: "Optional branch to filter by.",
+          },
+        },
+        required: ["repo"],
+      },
+    },
+  },
 ];
 
 export default TOOLS;

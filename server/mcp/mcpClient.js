@@ -17,15 +17,21 @@ export const connectMCP = async () => {
 
 export const callMcpTool = async (toolName, args) => {
   const client = await connectMCP();
-  const { content } = await client.callTool({
-    name: toolName,
-    arguments: args,
-  });
-
-  const rawText = content[0].text;
   try {
-    return JSON.parse(rawText);
-  } catch {
-    return rawText;
+    const { content } = await client.callTool({
+      name: toolName,
+      arguments: args,
+    });
+
+    const rawText = content[0].text;
+    try {
+      return JSON.parse(rawText);
+    } catch (jsonError) {
+      console.error("Failed to parse JSON response:", rawText); // Log raw response
+      throw new Error(`Invalid JSON response: ${rawText}`);
+    }
+  } catch (error) {
+    console.error("Error calling MCP tool:", error.message); // Log error details
+    throw new Error(`MCP tool call failed: ${error.message}`);
   }
 };

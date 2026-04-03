@@ -15,7 +15,43 @@ class GitHubService {
     return { owner, repo };
   }
 
-  async getLatestRuns(fullRepo, limit = 5, branch = null) {
+  async comparePipelineRunTimes(fullRepo, branch = null, limit = 5) {
+    const { owner, repo } = this._parseRepo(fullRepo);
+    const { data } = await this.octokit.rest.actions.listWorkflowRunsForRepo({
+      owner,
+      repo,
+      branch: branch || undefined,
+      per_page: limit,
+    });
+
+    const runTimes = data.workflow_runs.map((run) => ({
+      id: run.id,
+      name: run.name,
+      duration: new Date(run.updated_at) - new Date(run.created_at),
+      status: run.status,
+      conclusion: run.conclusion,
+      branch: run.head_branch,
+      commit: run.head_commit.message,
+      author: run.head_commit.author.name,
+      url: run.html_url,
+      created_at: run.created_at,
+    }));
+
+    const slowerRuns = [];
+    for (let i = 1; i < runTimes.length; i++) {
+      if (runTimes[i].duration > runTimes[i - 1].duration) {
+        slowerRuns.push({
+          currentRun: runTimes[i],
+          previousRun: runTimes[i - 1],
+          difference: runTimes[i].duration - runTimes[i - 1].duration,
+        });
+      }
+    }
+
+    return { runTimes, slowerRuns };
+  }
+
+  async getLatestRuns(fullRepo, branch = null, limit = 5) {
     const { owner, repo } = this._parseRepo(fullRepo);
     const { data } = await this.octokit.rest.actions.listWorkflowRunsForRepo({
       owner,
