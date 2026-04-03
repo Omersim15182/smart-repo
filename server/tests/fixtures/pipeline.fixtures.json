@@ -1,0 +1,59 @@
+{
+  "mockRuns": [
+    {
+      "id": 1,
+      "name": "CI Pipeline",
+      "status": "completed",
+      "conclusion": "success",
+      "head_branch": "CI/CD",
+      "head_commit": { "message": "initial commit", "author": { "name": "Omer" } },
+      "html_url": "https://github.com/omersim15182/smart-repo/actions/runs/1",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:10:00Z"
+    },
+    {
+      "id": 2,
+      "name": "CI Pipeline",
+      "status": "completed",
+      "conclusion": "success",
+      "head_branch": "CI/CD",
+      "head_commit": { "message": "fix login bug", "author": { "name": "Omer" } },
+      "html_url": "https://github.com/omersim15182/smart-repo/actions/runs/2",
+      "created_at": "2026-01-02T00:00:00Z",
+      "updated_at": "2026-01-02T00:15:00Z"
+    },
+    {
+      "id": 3,
+      "name": "CI Pipeline",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_branch": "CI/CD",
+      "head_commit": { "message": "add new feature", "author": { "name": "Omer" } },
+      "html_url": "https://github.com/omersim15182/smart-repo/actions/runs/3",
+      "created_at": "2026-01-03T00:00:00Z",
+      "updated_at": "2026-01-03T00:20:00Z"
+    },
+    {
+      "id": 4,
+      "name": "CI Pipeline",
+      "status": "completed",
+      "conclusion": "success",
+      "head_branch": "main",
+      "head_commit": { "message": "refactor tests", "author": { "name": "Dana" } },
+      "html_url": "https://github.com/omersim15182/smart-repo/actions/runs/4",
+      "created_at": "2026-01-04T00:00:00Z",
+      "updated_at": "2026-01-04T00:10:00Z"
+    },
+    {
+      "id": 5,
+      "name": "CI Pipeline",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_branch": "main",
+      "head_commit": { "message": "update dependencies", "author": { "name": "Dana" } },
+      "html_url": "https://github.com/omersim15182/smart-repo/actions/runs/5",
+      "created_at": "2026-01-05T00:00:00Z",
+      "updated_at": "2026-01-05T00:25:00Z"
+    }
+  ]
+}

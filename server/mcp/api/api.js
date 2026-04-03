@@ -31,8 +31,8 @@ class GitHubService {
       status: run.status,
       conclusion: run.conclusion,
       branch: run.head_branch,
-      commit: run.head_commit.message,
-      author: run.head_commit.author.name,
+      commit: run.head_commit?.message || "No commit message", // Add null check
+      author: run.head_commit?.author?.name || "Unknown", // Add null check
       url: run.html_url,
       created_at: run.created_at,
     }));
