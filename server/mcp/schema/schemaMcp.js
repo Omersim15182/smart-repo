@@ -32,6 +32,17 @@ class ToolSchemas {
         .describe("The commit message of the failed run to analyze"),
     });
 
+    this.comparePipelineRunTimes = z.object({
+      repo: z
+        .string()
+        .describe("The full repository name, e.g., 'owner/project'"),
+      limit: z
+        .number()
+        .default(5)
+        .describe("Number of pipeline runs to compare"),
+      branch: z.string().optional().describe("Filter by branch name"),
+    });
+
     // Create GitHub Issue (remains the same)
     this.createIssue = z.object({
       repo: z.string().describe("The full repository name, e.g., 'owner/repo'"),
