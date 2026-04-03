@@ -66,8 +66,6 @@ describe("GitHub API Functional Tests", () => {
   });
 });
 
-import githubAPI from "../mcp/api/api.js";
-
 describe("GitHubService - comparePipelineRunTimes", () => {
   test("should return slower pipeline runs", async () => {
     const mockRuns = [
