@@ -39,8 +39,17 @@ class ToolSchemas {
       limit: z
         .number()
         .default(5)
-        .describe("Number of pipeline runs to compare"),
-      branch: z.string().optional().describe("Filter by branch name"),
+        .describe("Number of pipeline runs to analyze and compare"),
+      branch: z
+        .string()
+        .optional()
+        .describe("Filter results by a specific branch name"),
+      targetTestName: z
+        .string()
+        .optional()
+        .describe(
+          "Optional: Focus on a specific test name (e.g. 'getStatusByCommit')",
+        ),
     });
 
     // Create GitHub Issue (remains the same)

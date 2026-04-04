@@ -15,8 +15,65 @@ class GitHubService {
     return { owner, repo };
   }
 
-  async comparePipelineRunTimes(fullRepo, branch = null, limit = 5) {
+  async getTestBreakdown(owner, repo, runId) {
+    try {
+      const { data: jobs } =
+        await this.octokit.rest.actions.listJobsForWorkflowRun({
+          owner,
+          repo,
+          run_id: runId,
+        });
+
+      if (!jobs.jobs || jobs.jobs.length === 0) return [];
+
+      const testJob =
+        jobs.jobs.find(
+          (j) =>
+            j.name.toLowerCase().includes("test") ||
+            j.name.toLowerCase().includes("jest"),
+        ) || jobs.jobs[0];
+
+      const response =
+        await this.octokit.rest.actions.downloadJobLogsForWorkflowRun({
+          owner,
+          repo,
+          job_id: testJob.id,
+        });
+      const logText = response.data.toString();
+      const regex = /(?:✓|PASS|test|[\s])\s+(.*?)\s+\((\d+)\s*ms\)/g;
+      const results = [];
+      let match;
+
+      while ((match = regex.exec(logText)) !== null) {
+        const name = match[1].trim();
+        const duration = parseInt(match[2], 10);
+
+        if (name.length > 3 && name.length < 100) {
+          results.push({ name, duration });
+        }
+      }
+
+      console.error(
+        `DEBUG - Found ${results.length} tests in log for Run ${runId} , ${results
+          .map((t) => t.name)
+          .slice(0, 5)
+          .join(", ")}...  `,
+      );
+      return results;
+    } catch (e) {
+      console.error(`Error in getTestBreakdown for ${runId}:`, e.message);
+      return [];
+    }
+  }
+
+  async comparePipelineRunTimes(
+    fullRepo,
+    branch = null,
+    limit = 5,
+    targetTestName = null,
+  ) {
     const { owner, repo } = this._parseRepo(fullRepo);
+
     const { data } = await this.octokit.rest.actions.listWorkflowRunsForRepo({
       owner,
       repo,
@@ -24,31 +81,58 @@ class GitHubService {
       per_page: limit,
     });
 
-    const runTimes = data.workflow_runs.map((run) => ({
-      id: run.id,
-      name: run.name,
-      duration: new Date(run.updated_at) - new Date(run.created_at),
-      status: run.status,
-      conclusion: run.conclusion,
-      branch: run.head_branch,
-      commit: run.head_commit?.message || "No commit message", // Add null check
-      author: run.head_commit?.author?.name || "Unknown", // Add null check
-      url: run.html_url,
-      created_at: run.created_at,
-    }));
+    const runHistory = await Promise.all(
+      data.workflow_runs.map(async (run) => ({
+        id: run.id,
+        display: `#${run.run_number} (${run.head_commit?.message.substring(0, 20)}...)`,
+        timestamp: run.created_at,
+        tests: await this.getTestBreakdown(owner, repo, run.id),
+      })),
+    );
 
-    const slowerRuns = [];
-    for (let i = 1; i < runTimes.length; i++) {
-      if (runTimes[i].duration > runTimes[i - 1].duration) {
-        slowerRuns.push({
-          currentRun: runTimes[i],
-          previousRun: runTimes[i - 1],
-          difference: runTimes[i].duration - runTimes[i - 1].duration,
-        });
-      }
+    const allTestNames = new Set();
+    runHistory.forEach((run) =>
+      run.tests.forEach((t) => allTestNames.add(t.name)),
+    );
+
+    const analysis = [];
+
+    const testsToAnalyze = targetTestName
+      ? Array.from(allTestNames).filter((name) => name.includes(targetTestName))
+      : Array.from(allTestNames);
+
+    for (const testName of testsToAnalyze) {
+      const sequence = runHistory.map((run) => {
+        const found = run.tests.find((t) => t.name === testName);
+        return {
+          runDisplay: run.display,
+          duration: found ? found.duration : null,
+        };
+      });
+
+      const validDurations = sequence
+        .map((s) => s.duration)
+        .filter((d) => d !== null);
+      const avg =
+        validDurations.reduce((a, b) => a + b, 0) / validDurations.length;
+      const latest = validDurations[0];
+      const trend = latest > avg ? "Slower" : "Stable/Faster";
+
+      analysis.push({
+        testName,
+        history: sequence,
+        averageMs: Math.round(avg),
+        latestMs: latest,
+        status: trend,
+        regression: latest > avg ? latest - avg : 0,
+      });
     }
 
-    return { runTimes, slowerRuns };
+    return {
+      repo: fullRepo,
+      totalRunsAnalyzed: runHistory.length,
+      testResults: analysis.sort((a, b) => b.regression - a.regression),
+    };
   }
 
   async getLatestRuns(fullRepo, branch = null, limit = 5) {

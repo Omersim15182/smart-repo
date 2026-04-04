@@ -56,16 +56,25 @@ server.registerTool(
   "compare_pipeline_run_times",
   {
     description:
-      "Compare test run times of pipelines in GitHub and indicate when test times get slower.",
+      "Compare test run times of pipelines in GitHub and identify regressions/slower tests.",
     inputSchema: toolSchemas.comparePipelineRunTimes.shape,
   },
   wrap((args) =>
-    githubAPI.comparePipelineRunTimes(args.repo, args.branch, args.limit),
+    githubAPI.comparePipelineRunTimes(
+      args.repo,
+      args.branch,
+      args.limit,
+      args.targetTestName,
+    ),
   ),
 );
 
 async function main() {
   const transport = new StdioServerTransport();
+  if (server.transport) {
+    console.error("Server is already connected, skipping connect().");
+    return;
+  }
   await server.connect(transport);
   console.error("github MCP Server running on stdio");
 }
