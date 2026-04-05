@@ -24,6 +24,13 @@ describe("GitHub API Functional Tests", () => {
 
   test("getStatusByCommit returns correct run details for a specific commit", async () => {
     const commitMsg = "update for run pipline test";
+
+    let data = [];
+    for (let i = 0; i < 2000000; i++) {
+        data.push(Math.sqrt(i) * Math.sin(i));
+    }
+    // -------------------------------------------
+
     const result = await githubAPI.getStatusByCommit(repo, commitMsg);
 
     if (!result.error) {
@@ -31,7 +38,18 @@ describe("GitHub API Functional Tests", () => {
       expect(result.commit).toContain(commitMsg);
       expect(result).toHaveProperty("url");
     }
-  });
+});
+
+  // test("getStatusByCommit returns correct run details for a specific commit", async () => {
+  //   const commitMsg = "update for run pipline test";
+  //   const result = await githubAPI.getStatusByCommit(repo, commitMsg);
+
+  //   if (!result.error) {
+  //     expect(result).toHaveProperty("id");
+  //     expect(result.commit).toContain(commitMsg);
+  //     expect(result).toHaveProperty("url");
+  //   }
+  // });
 
   test("getFailureDetailsByCommit returns clean logs and failed steps", async () => {
     const commitMsg = "add env for pipline";

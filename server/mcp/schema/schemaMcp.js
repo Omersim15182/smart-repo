@@ -59,6 +59,19 @@ class ToolSchemas {
       body: z.string().describe("Detailed explanation of the problem"),
       labels: z.array(z.string()).default(["bug"]),
     });
+
+    this.getPullRequestDiff = z.object({
+      repo: z.string().describe("The full repository name, e.g., 'owner/repo'"),
+      pullNumber: z.number().describe("The number of the pull request"),
+    });
+
+    this.postPrComment = z.object({
+      repo: z.string().describe("The full repository name, e.g., 'owner/repo'"),
+      pullNumber: z.number().describe("The number of the pull request"),
+      body: z
+        .string()
+        .describe("The content of the comment (Markdown supported)"),
+    });
   }
 }
 

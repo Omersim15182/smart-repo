@@ -2,7 +2,7 @@ import Groq from "groq-sdk";
 import dotenv from "dotenv";
 import TOOLS from "./tools.js";
 
-dotenv.config({ override: true });
+dotenv.config({ override: true, quiet: true });
 
 const SYSTEM_PROMPT = `
 You are a GitHub assistant. Use the available tools to fulfill user requests.

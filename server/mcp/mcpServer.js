@@ -3,11 +3,6 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import toolSchemas from "./schema/schemaMcp.js";
 import githubAPI from "./api/api.js";
 
-console.error(
-  "TOKEN CHECK:",
-  process.env.GIT_TOKEN ? "Token exists" : "Token is MISSING",
-);
-
 const server = new McpServer({ name: "github-repo", version: "1.0.0" });
 
 const wrap = (fn) => async (args) => {
@@ -66,6 +61,27 @@ server.registerTool(
       args.limit,
       args.targetTestName,
     ),
+  ),
+);
+
+server.registerTool(
+  "get_pull_request_diff",
+  {
+    description: "Get the raw diff of a Pull Request to analyze code changes.",
+    inputSchema: toolSchemas.getPullRequestDiff.shape,
+  },
+  wrap((args) => githubAPI.getPullRequestDiff(args.repo, args.pullNumber)),
+);
+
+server.registerTool(
+  "post_pr_comment",
+  {
+    description:
+      "Post a comment on a Pull Request, usually for performance analysis or alerts.",
+    inputSchema: toolSchemas.postPrComment.shape,
+  },
+  wrap((args) =>
+    githubAPI.postPrComment(args.repo, args.pullNumber, args.body),
   ),
 );
 
