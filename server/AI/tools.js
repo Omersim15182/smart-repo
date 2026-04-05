@@ -102,22 +102,29 @@ const TOOLS = [
     function: {
       name: "compare_pipeline_run_times",
       description:
-        "Compare test run times of pipelines in GitHub and indicate when test times get slower.",
+        "Compares pipeline performance including total duration and individual test times from logs to identify specific regressions.",
       parameters: {
         type: "object",
         properties: {
           repo: {
             type: "string",
-            description: "The full repository name, e.g., 'owner/project'",
+            description: "The full repository name (e.g., 'owner/project')",
           },
           limit: {
             type: "number",
-            description: "Number of pipeline runs to compare. Default is 5.",
+            description:
+              "Number of recent runs to fetch for comparison. Default is 5.",
             default: 5,
           },
           branch: {
             type: "string",
-            description: "Optional branch to filter by.",
+            description:
+              "Optional branch name to filter results (e.g., 'main' or 'CI/CD')",
+          },
+          targetTestName: {
+            type: "string",
+            description:
+              "Optional: A specific test name or substring (e.g., 'getStatusByCommit') to filter the performance history.",
           },
         },
         required: ["repo"],

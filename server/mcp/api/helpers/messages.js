@@ -28,6 +28,38 @@ class Message {
       /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-z]/g;
     return text.replace(ansiRegex, "");
   }
+
+  /** logic from original GitHubService for parsing tests */
+  static parseTestLogs(logText) {
+    const regex = /(?:✓|PASS|test|[\s])\s+(.*?)\s+\((\d+)\s*ms\)/g;
+    const results = [];
+    let match;
+
+    while ((match = regex.exec(logText)) !== null) {
+      const name = match[1].trim();
+      const duration = parseInt(match[2], 10);
+
+      if (name.length > 3 && name.length < 100) {
+        results.push({ name, duration });
+      }
+    }
+    return results;
+  }
+
+  /** logic from original GitHubService for filtering errors */
+  static filterErrorLogs(data) {
+    const cleanLogs = this.stripAnsi(data.toString());
+    return cleanLogs
+      .split("\n")
+      .filter(
+        (line) =>
+          line.toLowerCase().includes("error") ||
+          line.toLowerCase().includes("failed") ||
+          line.toLowerCase().includes("cypresserror"),
+      )
+      .map((line) => line.trim())
+      .slice(0, 10);
+  }
 }
 
 export default Message;
