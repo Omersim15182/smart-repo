@@ -73,7 +73,7 @@ async function main() {
   const transport = new StdioServerTransport();
   if (server.transport) {
     console.error("Server is already connected, skipping connect().");
-    return;
+    await server.close();
   }
   await server.connect(transport);
   console.error("github MCP Server running on stdio");

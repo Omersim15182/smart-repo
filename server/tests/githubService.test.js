@@ -1,7 +1,8 @@
 import githubAPI from "../mcp/api/api";
 import githubFixtures from "./fixtures/github.fixtures.json";
 import pipelineFixtures from "./fixtures/pipeline.fixtures.json";
-import { jest } from "@jest/globals";
+import { octokit } from "../mcp/api/gitInstance";
+import { expect, jest } from "@jest/globals";
 
 // ─── Functional Tests ────────────────────────────────────────────────────────
 
@@ -63,42 +64,41 @@ describe("GitHub API Functional Tests", () => {
 
 // ─── Unit Tests - Pipeline Comparison ───────────────────────────────────────
 
-describe("GitHub API - comparePipelineRunTimes", () => {
-  const { mockRuns } = pipelineFixtures;
+test("should compare 'test X' across pipelines logs", async () => {
+  const { mockRuns, logsByRunId } = pipelineFixtures;
 
-  beforeEach(() => {
-    jest
-      .spyOn(githubAPI.octokit.rest.actions, "listWorkflowRunsForRepo")
-      .mockResolvedValue({ data: { workflow_runs: mockRuns } });
-  });
+  const m = jest
+    .spyOn(octokit.rest.actions, "listWorkflowRunsForRepo")
+    .mockResolvedValue({ data: { workflow_runs: mockRuns } });
 
-  afterEach(() => jest.restoreAllMocks());
-
-  test("identifies slower runs based on fixtures", async () => {
-    const result = await githubAPI.comparePipelineRunTimes(
-      "omersim15182/smart-repo",
-      "CI/CD",
-    );
-    console.log("res :", result.slowerRuns);
-
-    expect(result.slowerRuns).toHaveLength(3);
-
-    expect(result.slowerRuns[0].difference).toBe(300000); // Omer's 5 min jump
-    expect(result.slowerRuns[2].difference).toBe(900000); // Dana's 15 min jump
-  });
-
-  test("calculates correct duration and maps fields correctly", async () => {
-    const result = await githubAPI.comparePipelineRunTimes(
-      "omersim15182/smart-repo",
-      "main",
-    );
-
-    expect(result.runTimes).toHaveLength(5);
-    expect(result.runTimes[4].duration).toBe(1500000);
-    expect(result.runTimes[3]).toMatchObject({
-      id: 4,
-      branch: "main",
-      author: "Dana",
+  jest
+    .spyOn(octokit.rest.actions, "listJobsForWorkflowRun")
+    .mockImplementation(async ({ run_id }) => {
+      return {
+        data: {
+          jobs: [{ id: run_id, name: "run-tests-job" }],
+        },
+      };
     });
-  });
+
+  jest
+    .spyOn(octokit.rest.actions, "downloadJobLogsForWorkflowRun")
+    .mockImplementation(async ({ job_id }) => {
+      return { data: logsByRunId[job_id] || "" };
+    });
+
+  // Execute Service
+  const { testResults, totalRunsAnalyzed } =
+    await githubAPI.comparePipelineRunTimes("owner/repo", "main", 3, "test X");
+
+  const testX = testResults?.find((r) => r.testName.includes("test X"));
+
+  // Assertions
+  expect(totalRunsAnalyzed).toBe(5);
+  expect(testX).toBeDefined();
+  expect(testX.history[0].duration).toBe(600);
+  expect(testX.history[4].duration).toBe(400);
+  expect(testX.averageMs).toBe(500);
+  expect(testX.status).toBe("Slower");
+  expect(testX.regression).toBe(100);
 });

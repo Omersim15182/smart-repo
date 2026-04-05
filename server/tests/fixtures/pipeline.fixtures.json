@@ -1,59 +1,16 @@
 {
   "mockRuns": [
-    {
-      "id": 1,
-      "name": "CI Pipeline",
-      "status": "completed",
-      "conclusion": "success",
-      "head_branch": "CI/CD",
-      "head_commit": { "message": "initial commit", "author": { "name": "Omer" } },
-      "html_url": "https://github.com/omersim15182/smart-repo/actions/runs/1",
-      "created_at": "2026-01-01T00:00:00Z",
-      "updated_at": "2026-01-01T00:10:00Z"
-    },
-    {
-      "id": 2,
-      "name": "CI Pipeline",
-      "status": "completed",
-      "conclusion": "success",
-      "head_branch": "CI/CD",
-      "head_commit": { "message": "fix login bug", "author": { "name": "Omer" } },
-      "html_url": "https://github.com/omersim15182/smart-repo/actions/runs/2",
-      "created_at": "2026-01-02T00:00:00Z",
-      "updated_at": "2026-01-02T00:15:00Z"
-    },
-    {
-      "id": 3,
-      "name": "CI Pipeline",
-      "status": "completed",
-      "conclusion": "failure",
-      "head_branch": "CI/CD",
-      "head_commit": { "message": "add new feature", "author": { "name": "Omer" } },
-      "html_url": "https://github.com/omersim15182/smart-repo/actions/runs/3",
-      "created_at": "2026-01-03T00:00:00Z",
-      "updated_at": "2026-01-03T00:20:00Z"
-    },
-    {
-      "id": 4,
-      "name": "CI Pipeline",
-      "status": "completed",
-      "conclusion": "success",
-      "head_branch": "main",
-      "head_commit": { "message": "refactor tests", "author": { "name": "Dana" } },
-      "html_url": "https://github.com/omersim15182/smart-repo/actions/runs/4",
-      "created_at": "2026-01-04T00:00:00Z",
-      "updated_at": "2026-01-04T00:10:00Z"
-    },
-    {
-      "id": 5,
-      "name": "CI Pipeline",
-      "status": "completed",
-      "conclusion": "failure",
-      "head_branch": "main",
-      "head_commit": { "message": "update dependencies", "author": { "name": "Dana" } },
-      "html_url": "https://github.com/omersim15182/smart-repo/actions/runs/5",
-      "created_at": "2026-01-05T00:00:00Z",
-      "updated_at": "2026-01-05T00:25:00Z"
-    }
-  ]
+    { "id": 101, "run_number": 5, "head_commit": { "message": "Refactor auth" }, "created_at": "2026-04-05T14:00:00Z" },
+    { "id": 102, "run_number": 4, "head_commit": { "message": "Update deps" }, "created_at": "2026-04-05T13:00:00Z" },
+    { "id": 103, "run_number": 3, "head_commit": { "message": "Third Run" }, "created_at": "2026-04-05T12:00:00Z" },
+    { "id": 104, "run_number": 2, "head_commit": { "message": "Second Run" }, "created_at": "2026-04-05T11:00:00Z" },
+    { "id": 105, "run_number": 1, "head_commit": { "message": "First Run" }, "created_at": "2026-04-05T10:00:00Z" }
+  ],
+  "logsByRunId": {
+    "101": "✓ test Y (100 ms)\n✓ test Z (50 ms)\n✓ test X (600 ms)",
+    "102": "✓ test Z (200 ms)\n✓ test X (550 ms)\n✓ test Y (110 ms)",
+    "103": "✓ test X (500 ms)\n✓ test Y (105 ms)\n✓ test Z (300 ms)",
+    "104": "✓ test Z (400 ms)\n✓ test Y (115 ms)\n✓ test X (450 ms)",
+    "105": "✓ test Y (120 ms)\n✓ test X (400 ms)\n✓ test Z (500 ms)"
+  }
 }
