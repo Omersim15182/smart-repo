@@ -131,6 +131,40 @@ const TOOLS = [
       },
     },
   },
+
+  {
+    type: "function",
+    function: {
+      name: "get_pull_request_diff",
+      description:
+        "Get the raw diff of a Pull Request to analyze code changes.",
+      parameters: {
+        type: "object",
+        properties: {
+          repo: { type: "string" },
+          pullNumber: { type: "number" },
+        },
+        required: ["repo", "pullNumber"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "post_pr_comment",
+      description:
+        "Post a comment on a Pull Request with performance analysis.",
+      parameters: {
+        type: "object",
+        properties: {
+          repo: { type: "string" },
+          pullNumber: { type: "number" },
+          body: { type: "string" },
+        },
+        required: ["repo", "pullNumber", "body"],
+      },
+    },
+  },
 ];
 
 export default TOOLS;
