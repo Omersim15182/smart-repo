@@ -3,9 +3,6 @@ node_modules/
 server/node_modules/
 server/.env
 
-# Build outputs
-client/dist/
-dist/
 
 # Debug logs
 npm-debug.log*
@@ -18,6 +15,6 @@ Thumbs.db
 
 # IDE settings
 .vscode/
-.idea/
+.continue/
 
 server/agent/agentInstructions.js

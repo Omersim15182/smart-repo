@@ -1,59 +1,110 @@
-import { Octokit } from "octokit";
 import dotenv from "dotenv";
 import message from "./helpers/messages.js";
+import { octokit } from "./gitInstance.js";
 dotenv.config({ override: true });
 
 class GitHubService {
-  constructor() {
-    this.octokit = new Octokit({
-      auth: process.env.GIT_TOKEN,
-    });
-  }
-
   _parseRepo(fullRepo) {
     const [owner, repo] = fullRepo.split("/");
     return { owner, repo };
   }
 
-  async comparePipelineRunTimes(fullRepo, branch = null, limit = 5) {
+  async getTestBreakdown(owner, repo, runId) {
+    try {
+      const { data: jobs } = await octokit.rest.actions.listJobsForWorkflowRun({
+        owner,
+        repo,
+        run_id: runId,
+      });
+
+      if (!jobs.jobs || jobs.jobs.length === 0) return [];
+
+      const testJob =
+        jobs.jobs.find(
+          (j) =>
+            j.name.toLowerCase().includes("test") ||
+            j.name.toLowerCase().includes("jest"),
+        ) || jobs.jobs[0];
+
+      const response = await octokit.rest.actions.downloadJobLogsForWorkflowRun(
+        {
+          owner,
+          repo,
+          job_id: testJob.id,
+        },
+      );
+
+      return message.parseTestLogs(response.data.toString());
+    } catch (e) {
+      console.error(`Error in getTestBreakdown for ${runId}:`, e.message);
+      return [];
+    }
+  }
+
+  async comparePipelineRunTimes(
+    fullRepo,
+    branch = null,
+    limit = 5,
+    targetTestName = null,
+  ) {
     const { owner, repo } = this._parseRepo(fullRepo);
-    const { data } = await this.octokit.rest.actions.listWorkflowRunsForRepo({
+
+    const { data } = await octokit.rest.actions.listWorkflowRunsForRepo({
       owner,
       repo,
       branch: branch || undefined,
       per_page: limit,
     });
 
-    const runTimes = data.workflow_runs.map((run) => ({
-      id: run.id,
-      name: run.name,
-      duration: new Date(run.updated_at) - new Date(run.created_at),
-      status: run.status,
-      conclusion: run.conclusion,
-      branch: run.head_branch,
-      commit: run.head_commit?.message || "No commit message", // Add null check
-      author: run.head_commit?.author?.name || "Unknown", // Add null check
-      url: run.html_url,
-      created_at: run.created_at,
-    }));
+    const runHistory = await Promise.all(
+      data.workflow_runs.map(async (run) => ({
+        display: `#${run.run_number} (${run.head_commit?.message.slice(0, 20)}...)`,
+        tests: await this.getTestBreakdown(owner, repo, run.id),
+      })),
+    );
 
-    const slowerRuns = [];
-    for (let i = 1; i < runTimes.length; i++) {
-      if (runTimes[i].duration > runTimes[i - 1].duration) {
-        slowerRuns.push({
-          currentRun: runTimes[i],
-          previousRun: runTimes[i - 1],
-          difference: runTimes[i].duration - runTimes[i - 1].duration,
-        });
-      }
-    }
+    const allTestNames = [
+      ...new Set(runHistory.flatMap((r) => r.tests.map((t) => t.name))),
+    ].filter((name) => !targetTestName || name.includes(targetTestName));
 
-    return { runTimes, slowerRuns };
+    const testResults = allTestNames
+      .map((testName) => {
+        const history = runHistory.map((run) => ({
+          runDisplay: run.display,
+          duration:
+            run.tests.find((t) => t.name === testName)?.duration || null,
+        }));
+
+        const validDurations = history
+          .map((h) => h.duration)
+          .filter((d) => d !== null);
+        const avg =
+          validDurations.reduce((a, b) => a + b, 0) /
+          (validDurations.length || 1);
+        const latest = validDurations[0] || 0;
+        const isSlower = latest > avg;
+
+        return {
+          testName,
+          history,
+          averageMs: Math.round(avg),
+          latestMs: latest,
+          status: isSlower ? "Slower" : "Stable/Faster",
+          regression: isSlower ? Math.round(latest - avg) : 0,
+        };
+      })
+      .sort((a, b) => b.regression - a.regression);
+
+    return {
+      repo: fullRepo,
+      totalRunsAnalyzed: runHistory.length,
+      testResults,
+    };
   }
 
   async getLatestRuns(fullRepo, branch = null, limit = 5) {
     const { owner, repo } = this._parseRepo(fullRepo);
-    const { data } = await this.octokit.rest.actions.listWorkflowRunsForRepo({
+    const { data } = await octokit.rest.actions.listWorkflowRunsForRepo({
       owner,
       repo,
       branch: branch || undefined,
@@ -75,7 +126,7 @@ class GitHubService {
 
   async getStatusByCommit(fullRepo, commitMessage) {
     const { owner, repo } = this._parseRepo(fullRepo);
-    const { data } = await this.octokit.rest.actions.listWorkflowRunsForRepo({
+    const { data } = await octokit.rest.actions.listWorkflowRunsForRepo({
       owner,
       repo,
       per_page: 50,
@@ -100,7 +151,7 @@ class GitHubService {
   async getFailureDetailsByCommit(fullRepo, commitMessage) {
     const { owner, repo } = this._parseRepo(fullRepo);
     const { data: runData } =
-      await this.octokit.rest.actions.listWorkflowRunsForRepo({
+      await octokit.rest.actions.listWorkflowRunsForRepo({
         owner,
         repo,
         per_page: 50,
@@ -113,12 +164,13 @@ class GitHubService {
     if (!run || run.conclusion !== "failure")
       return { message: "No failed run found for this commit" };
 
-    const { data: jobData } =
-      await this.octokit.rest.actions.listJobsForWorkflowRun({
+    const { data: jobData } = await octokit.rest.actions.listJobsForWorkflowRun(
+      {
         owner,
         repo,
         run_id: run.id,
-      });
+      },
+    );
 
     const failures = await Promise.all(
       jobData.jobs
@@ -138,24 +190,15 @@ class GitHubService {
 
   async _getRelevantLogs(owner, repo, jobId) {
     try {
-      const { data } =
-        await this.octokit.rest.actions.downloadJobLogsForWorkflowRun({
+      const { data } = await octokit.rest.actions.downloadJobLogsForWorkflowRun(
+        {
           owner,
           repo,
           job_id: jobId,
-        });
+        },
+      );
 
-      const cleanLogs = message.stripAnsi(data);
-      return cleanLogs
-        .split("\n")
-        .filter(
-          (line) =>
-            line.toLowerCase().includes("error") ||
-            line.toLowerCase().includes("failed") ||
-            line.toLowerCase().includes("cypresserror"),
-        )
-        .map((line) => line.trim())
-        .slice(0, 10);
+      return message.filterErrorLogs(data);
     } catch {
       return ["Logs unavailable"];
     }
@@ -163,7 +206,7 @@ class GitHubService {
 
   async createIssue(fullRepo, { title, body, labels }) {
     const { owner, repo } = this._parseRepo(fullRepo);
-    const { data } = await this.octokit.rest.issues.create({
+    const { data } = await octokit.rest.issues.create({
       owner,
       repo,
       title,
