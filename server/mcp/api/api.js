@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import message from "./helpers/messages.js";
 import { octokit } from "./gitInstance.js";
-dotenv.config({ override: true });
+dotenv.config({ override: true, quiet: true });
 
 class GitHubService {
   _parseRepo(fullRepo) {
@@ -100,6 +100,60 @@ class GitHubService {
       totalRunsAnalyzed: runHistory.length,
       testResults,
     };
+  }
+
+  /**
+   * Fetches the raw diff of a Pull Request using the rest client.
+   */
+  async getPullRequestDiff(fullRepo, pullNumber) {
+    try {
+      const { owner, repo } = this._parseRepo(fullRepo);
+
+      const { data } = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: pullNumber,
+        mediaType: {
+          format: "diff",
+        },
+      });
+
+      return data;
+    } catch (error) {
+      console.error(
+        `[GitHub API] Error fetching diff for PR #${pullNumber}:`,
+        error.message,
+      );
+      throw new Error(`Failed to fetch PR diff: ${error.message}`);
+    }
+  }
+
+  /**
+   * Posts a comment to a Pull Request or Issue using the rest client.
+   */
+  async postPrComment(fullRepo, pullNumber, body) {
+    try {
+      const { owner, repo } = this._parseRepo(fullRepo);
+
+      const { data } = await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: pullNumber,
+        body,
+      });
+
+      return {
+        success: true,
+        commentId: data.id,
+        url: data.html_url,
+      };
+    } catch (error) {
+      console.error(
+        `[GitHub API] Error posting comment to PR #${pullNumber}:`,
+        error.message,
+      );
+      throw new Error(`Failed to post PR comment: ${error.message}`);
+    }
   }
 
   async getLatestRuns(fullRepo, branch = null, limit = 5) {
